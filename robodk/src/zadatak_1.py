@@ -20,9 +20,7 @@ rdk = Robolink()
 rdk.setRunMode(1)
 
 # Determine output directory for generated graphs
-station_path_str = rdk.getParam('PATH_OPENSTATION')
-base_path = Path(station_path_str) if station_path_str else Path.home() / "Desktop"
-output_dir = base_path / "Robot_Analysis_Results"
+output_dir = Path("outputs/zadatak_01")
 output_dir.mkdir(parents=True, exist_ok=True)
 
 # Retrieve robot, target points, and tool for tracking
