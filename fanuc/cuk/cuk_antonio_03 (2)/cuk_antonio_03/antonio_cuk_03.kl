@@ -1,0 +1,122 @@
+PROGRAM anton_cuk_03
+%COMMENT = 'BUSENJE'
+%NOLOCKGROUP
+%NOPAUSESHFT
+---model robota M-10iA----
+CONST
+    filepath = 'MC:koordinate.txt'
+    konst_dub = 25.0
+    max_tocaka =200
+VAR
+    myfile : FILE
+    red    : STRING[128]
+    poz    : INTEGER
+    tmp    : STRING[32]
+    x, y, brzina, dubina : REAL
+    broj_zn, brojac,prog_index,i : INTEGER
+    status : INTEGER
+    EOF : BOOLEAN
+    conf : CONFIG
+    tocke: ARRAY[200] OF XYZWPR
+    brzine: ARRAY[200] OF REAL
+    p1:XYZWPR
+    
+BEGIN
+	FORCE_SPMENU(TP_PANEL, SPI_TPUSER, 1)
+
+    CNV_STR_CONF('nut000', conf, status)
+    	    $GROUP[1].$UFRAME = $MNUFRAME[1,1];
+		  $GROUP[1].$UTOOL =  $MNUTOOL[1,1]
+    CALL_PROG('HOME',prog_index)
+	WRITE TPDISPLAY(CHR(128), CHR(137))
+    WRITE('--- Parsiranje koordinate.txt ---', CR)
+    OPEN FILE myfile('RO', filepath)
+    IF IO_STATUS(myfile) <> 0 THEN
+        WRITE('GRESKA: Ne mogu otvoriti datoteku', CR)
+        RETURN
+    ENDIF
+
+    brojac = 0
+    EOF = FALSE
+
+    REPEAT
+        READ myfile(red)
+        IF IO_STATUS(myfile) <> 0 THEN
+            EOF = TRUE
+        ELSE
+            broj_zn = 0
+            poz = 1
+
+            WHILE (poz <= STR_LEN(red)) AND (broj_zn < 4) DO
+                -- Preskoci praznine
+                WHILE (poz <= STR_LEN(red)) AND (SUB_STR(red, poz, 1) = ' ')   DO
+                    poz = poz + 1
+                ENDWHILE
+
+                tmp = ''
+                -- Skupi znakove broja
+                WHILE (poz <= STR_LEN(red)) AND (SUB_STR(red, poz, 1) <> ' ')  DO
+                    tmp = tmp + SUB_STR(red, poz, 1)
+                    poz = poz + 1
+                ENDWHILE
+
+                IF STR_LEN(tmp) > 0 THEN
+                    broj_zn = broj_zn + 1
+                    SELECT broj_zn OF
+                    CASE (1): 
+                        CNV_STR_REAL(tmp, x)
+                    CASE (2):
+                         CNV_STR_REAL(tmp, y)
+                     CASE (3):
+                        CNV_STR_REAL(tmp, brzina)
+                      CASE (4):
+                        CNV_STR_REAL(tmp, dubina)
+                    ENDSELECT
+                ENDIF
+            ENDWHILE
+
+            -- Analiza koliko brojeva je naðeno
+            IF broj_zn = 4 THEN
+                brojac = brojac + 1
+                WRITE('[', brojac::2, '] X=', x::8::2, ' Y=', y::8::2,CR)
+                
+                 WRITE(' V=', brzina::6::2, ' D=', dubina::6::2, CR)
+                 p1 = POS(x, y, -dubina, 0, 0, 0, conf)
+                  brzine[brojac]=ABS(brzina)
+            	 tocke[brojac] = p1
+            ENDIF
+            
+            IF broj_zn = 3 THEN
+                brojac = brojac + 1
+                dubina = konst_dub
+                WRITE('[', brojac::2, '] X=', x::8::2, ' Y=', y::8::2,CR)
+                 WRITE( ' V=', brzina::6::2, ' D=', dubina::6::2, CR)
+                  p1 = POS(x, y, -dubina, 0, 0, 0, conf)
+                 brzine[brojac]=ABS(brzina)  
+            	 tocke[brojac] = p1
+            ENDIF
+            
+            IF broj_zn<3 THEN
+            	                WRITE('---Preskacem red---: "', red, '"', CR)
+            ENDIF
+            
+            
+            IF (brojac>=max_tocaka) THEN
+            	GO TO kraj
+
+
+            ENDIF
+            
+        ENDIF
+    UNTIL EOF
+
+kraj::
+    CLOSE FILE myfile
+    WRITE('--- Gotovo èitanje ---', CR)
+        FOR i = 1 TO brojac DO
+	        SET_POS_REG(2, tocke[i], status)
+	        SET_REAL_REG(2,brzine[i],status)
+	        CALL_PROG('KRENI', prog_index)
+	        DELAY 500 -- Kratka pauza izmeðu poziva
+    ENDFOR
+END anton_cuk_03
