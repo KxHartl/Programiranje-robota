@@ -1,0 +1,301 @@
+PROGRAM hartl_drilling
+%NOLOCKGROUP
+%NOPAUSESHFT
+%COMMENT = 'Zadatak 3 - Busenje'
+
+-- ===================================================================
+-- PROGRAM: hartl_drilling
+-- AUTOR: Krešimir Hartl
+-- ZADATAK: Robotsko bušenje - čitanje koordinata iz datoteke
+-- ===================================================================
+
+-- FUNKCIONALNOST:
+-- 1. Čita koordinate iz datoteke KOORDINATE.txt
+-- 2. Za svaku točku: X, Y, brzina, [dubina]
+-- 3. Generira pozicije i pozicionira robota
+-- 4. Izvršava bušenje na svakoj točki
+
+CONST
+    COORDINATE_FILE = 'MC:KOORDINATE.txt'  -- Putanja do datoteke s koordinatama
+    TP_PROGRAM_NAME = 'MOVE_ZADATAK_03'  -- Ime TP programa za izvršavanje
+    DEFAULT_DEPTH = 25.0                    -- Default dubina bušenja [mm]
+    MAX_POINTS = 200                        -- Maksimalan broj točaka
+    APPROACH_HEIGHT = 500                   -- Visina iznad točke [mm]
+
+VAR
+    -- Datoteka i parsiranje
+    coord_file: FILE
+    line_text: STRING[128]
+    current_char: STRING[1]
+    temp_string: STRING[32]
+    
+    -- Koordinate i parametri
+    x_coord, y_coord, drill_speed, drill_depth: REAL
+    
+    -- Brojači i kontrola
+    point_counter: INTEGER
+    char_position: INTEGER
+    value_count: INTEGER
+    status: INTEGER
+    read_status: INTEGER
+    prog_index: INTEGER
+    end_of_file: BOOLEAN
+    
+    -- Robot konfiguracija i pozicije
+    robot_config: CONFIG
+    drill_position: XYZWPR
+    approach_position: XYZWPR
+    home_joints: ARRAY[9] OF REAL
+    home_position: JOINTPOS
+
+BEGIN
+    WRITE('', CR)
+    WRITE('========================================', CR)
+    WRITE('   ROBOTSKO BUSENJE - HARTL', CR)
+    WRITE('========================================', CR)
+    WRITE('', CR)
+    
+    -- ===================================================================
+    -- INICIJALIZACIJA
+    -- ===================================================================
+    
+    -- Inicijalizacija varijabli
+    status = 0
+    point_counter = 0
+    end_of_file = FALSE
+    
+    -- Postavljanje robot konfiguracije
+    CNV_STR_CONF('NUT000', robot_config, status)
+    
+    -- Postavljanje HOME pozicije (J5 = -90°)
+    home_joints[1] = 0.0
+    home_joints[2] = 0.0
+    home_joints[3] = 0.0
+    home_joints[4] = 0.0
+    home_joints[5] = -90.0
+    home_joints[6] = 0.0
+    home_joints[7] = 0.0
+    home_joints[8] = 0.0
+    home_joints[9] = 0.0
+    
+    -- Konverzija i spremanje HOME pozicije u PR[1]
+    CNV_REL_JPOS(home_joints, home_position, status)
+    SET_JPOS_REG(1, home_position, status)
+    
+    -- Postavljanje tipa gibanja
+    $GROUP[1].$MOTYPE = JOINT
+    $GROUP[1].$TERMTYPE = FINE
+    
+    -- Pomak na HOME poziciju
+    WRITE('Pomak na HOME poziciju...', CR)
+    MOVE TO home_position
+    WRITE('Robot u HOME poziciji.', CR)
+    WRITE('', CR)
+    
+    -- ===================================================================
+    -- OTVARANJE I ČITANJE DATOTEKE
+    -- ===================================================================
+    
+    WRITE('Otvaranje datoteke: ', COORDINATE_FILE, CR)
+    OPEN FILE coord_file('RO', COORDINATE_FILE)
+    
+    IF IO_STATUS(coord_file) <> 0 THEN
+        WRITE('GRESKA: Ne mogu otvoriti datoteku!', CR)
+        WRITE('Provjerite putanju i ime datoteke.', CR)
+        RETURN
+    ENDIF
+    
+    WRITE('Datoteka uspjesno otvorena.', CR)
+    WRITE('', CR)
+    WRITE('--- PARSIRANJE DATOTEKE ---', CR)
+    
+    -- ===================================================================
+    -- GLAVNA PETLJA - Čitanje linija iz datoteke
+    -- ===================================================================
+    
+    line_text = ''
+    
+    REPEAT
+        -- Reset line_text prije čitanja
+        line_text = ''
+        
+        -- Čitanje jedne linije iz datoteke
+        READ coord_file(line_text)
+        read_status = IO_STATUS(coord_file)
+
+        -- Ako je čitanje uspjelo, obradi liniju (EOF flag se provjerava nakon obrade)
+        IF read_status = 0 THEN
+            IF STR_LEN(line_text) > 0 THEN
+                -- ===================================================================
+                -- PARSIRANJE VRIJEDNOSTI IZ LINIJE
+                -- ===================================================================
+                value_count = 0
+                char_position = 1
+                status = 0
+                
+                -- Resetiranje vrijednosti za novu liniju
+                x_coord = -999
+                y_coord = -999
+                drill_speed = -999
+                drill_depth = -999
+                
+                -- Inicijalizacija robot konfiguracije
+                CNV_STR_CONF('NUT000', robot_config, status)
+                
+                WHILE (char_position <= STR_LEN(line_text)) AND (value_count < 4) DO
+                    -- Preskoči praznine
+                    WHILE (char_position <= STR_LEN(line_text)) AND 
+                          (SUB_STR(line_text, char_position, 1) = ' ') DO
+                        char_position = char_position + 1
+                    ENDWHILE
+                    
+                    -- Prikupi znakove broja
+                    temp_string = ''
+                    WHILE (char_position <= STR_LEN(line_text)) AND 
+                          (SUB_STR(line_text, char_position, 1) <> ' ') DO
+                        temp_string = temp_string + SUB_STR(line_text, char_position, 1)
+                        char_position = char_position + 1
+                    ENDWHILE
+                    
+                    -- Ako je prikupljen broj, obradi ga
+                    IF STR_LEN(temp_string) > 0 THEN
+                        value_count = value_count + 1
+                        
+                        SELECT value_count OF
+                        CASE (1):
+                            CNV_STR_REAL(temp_string, x_coord)
+                        CASE (2):
+                            CNV_STR_REAL(temp_string, y_coord)
+                        CASE (3):
+                            CNV_STR_REAL(temp_string, drill_speed)
+                        CASE (4):
+                            CNV_STR_REAL(temp_string, drill_depth)
+                        ENDSELECT
+                    ENDIF
+                ENDWHILE
+                
+                -- ===================================================================
+                -- VALIDACIJA I OBRADA PROČITANIH PODATAKA
+                -- ===================================================================
+                
+                IF value_count = 4 THEN
+                    -- Sva 4 parametra pročitana (X, Y, brzina, dubina)
+                    point_counter = point_counter + 1
+                    
+                    WRITE('[', point_counter::2, '] X=', x_coord::8::2, 
+                          ' Y=', y_coord::8::2, CR)
+                    WRITE('     V=', drill_speed::6::2, 
+                          ' D=', drill_depth::6::2, CR)
+                    
+                    -- Postavljanje pozicija za busenje
+                    -- Pozicija iznad tocke (approach)
+                    approach_position.X = x_coord
+                    approach_position.Y = y_coord
+                    approach_position.Z = APPROACH_HEIGHT
+                    approach_position.W = 180
+                    approach_position.P = 0
+                    approach_position.R = 0
+                    approach_position.config_data = robot_config
+                    SET_POS_REG(10, approach_position, status)
+                    
+                    -- Pozicija busenja (drill)
+                    drill_position.X = x_coord
+                    drill_position.Y = y_coord
+                    drill_position.Z = APPROACH_HEIGHT - drill_depth
+                    drill_position.W = 180
+                    drill_position.P = 0
+                    drill_position.R = 0
+                    drill_position.config_data = robot_config
+                    SET_POS_REG(11, drill_position, status)
+                    
+                    -- Spremanje brzine u registar
+                    SET_REAL_REG(10, ABS(drill_speed), status)
+                    
+                    -- Pokretanje TP programa
+                    CALL_PROG(TP_PROGRAM_NAME, prog_index)
+                    
+                ENDIF
+                
+                IF value_count = 3 THEN
+                    -- 3 parametra pročitana (X, Y, brzina) - koristi default dubinu
+                    point_counter = point_counter + 1
+                    drill_depth = DEFAULT_DEPTH
+                    
+                    WRITE('[', point_counter::2, '] X=', x_coord::8::2, 
+                          ' Y=', y_coord::8::2, CR)
+                    WRITE('     V=', drill_speed::6::2, 
+                          ' D=', drill_depth::6::2, ' (DEFAULT)', CR)
+                    
+                    -- Postavljanje pozicija za busenje
+                    -- Pozicija iznad tocke (approach)
+                    approach_position.X = x_coord
+                    approach_position.Y = y_coord
+                    approach_position.Z = APPROACH_HEIGHT
+                    approach_position.W = 180
+                    approach_position.P = 0
+                    approach_position.R = 0
+                    approach_position.config_data = robot_config
+                    SET_POS_REG(10, approach_position, status)
+                    
+                    -- Pozicija busenja (drill)
+                    drill_position.X = x_coord
+                    drill_position.Y = y_coord
+                    drill_position.Z = APPROACH_HEIGHT - drill_depth
+                    drill_position.W = 180
+                    drill_position.P = 0
+                    drill_position.R = 0
+                    drill_position.config_data = robot_config
+                    SET_POS_REG(11, drill_position, status)
+                    
+                    -- Spremanje brzine u registar
+                    SET_REAL_REG(10, ABS(drill_speed), status)
+                    
+                    -- Pokretanje TP programa
+                    CALL_PROG(TP_PROGRAM_NAME, prog_index)
+                    
+                ENDIF
+                
+                IF value_count < 3 THEN
+                    -- Premalo parametara - preskoči liniju
+                    WRITE('Preskocena linija (nedovoljno podataka): "', line_text, '"', CR)
+                ENDIF
+                
+                -- Provjera maksimalnog broja točaka
+                IF point_counter >= MAX_POINTS THEN
+                    WRITE('', CR)
+                    WRITE('Dosegnut maksimalan broj tocaka (', MAX_POINTS, ').', CR)
+                    GO TO finish_drilling
+                ENDIF
+            ENDIF
+        ENDIF
+
+        -- Nakon obrade provjeri status i postavi kraj petlje
+        IF read_status <> 0 THEN
+            end_of_file = TRUE
+        ENDIF
+        
+    UNTIL end_of_file
+    
+finish_drilling::
+    
+    -- ===================================================================
+    -- ZATVARANJE DATOTEKE I POVRATAK U HOME
+    -- ===================================================================
+    
+    CLOSE FILE coord_file
+    
+    WRITE('', CR)
+    WRITE('--- BUSENJE ZAVRSENO ---', CR)
+    WRITE('Ukupno obradeno tocaka: ', point_counter, CR)
+    WRITE('', CR)
+    
+    -- Povratak u HOME poziciju
+    WRITE('Povratak u HOME poziciju...', CR)
+    $GROUP[1].$MOTYPE = JOINT
+    $GROUP[1].$TERMTYPE = FINE
+    MOVE TO home_position
+    
+    WRITE('Robot u HOME poziciji.', CR)
+    WRITE('Program zavrsen.', CR)
+    
+END hartl_drilling

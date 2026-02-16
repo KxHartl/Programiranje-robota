@@ -1,0 +1,46 @@
+PROGRAM info1
+VAR
+   i,int_value:INTEGER
+   status:INTEGER 
+   r1,r2,real_value:REAL
+   real_flag:BOOLEAN
+    
+    
+   time_int:INTEGER
+   time_str:STRING[40]
+BEGIN
+     --wait for FLG[1]=TRUE
+   		
+   		--WRITE('WAITNG.... F1....',CR); 
+
+   		--WAIT for TPIN[129];
+   		
+	--GET_REG(register_no, real_flag, int_value, real_value, status)
+	GET_REG(1, real_flag, int_value, real_value, status)
+	
+	IF real_flag=FALSE THEN
+		r1=int_value
+	ELSE
+		r1=real_value
+	ENDIF
+	
+	
+	GET_REG(2, real_flag, int_value, real_value, status)
+	
+	IF real_flag=FALSE THEN
+		r2=int_value
+	ELSE
+		r2=real_value
+	ENDIF
+	
+	
+	GET_TIME(time_int) -- Get the system time	
+	CNV_TIME_STR(time_int, time_str) -- Convert the INTEGER time
+	-- to readable format
+	WRITE ('Today is ', SUB_STR(time_str, 1,10),CR)
+	WRITE ('TIME is ', SUB_STR(time_str, 11,5),CR)
+	i=$FAST_CLOCK 
+	
+	WRITE('red:',r1::4::0,'   stupac:',r2::4::0,CR)
+	
+END info1

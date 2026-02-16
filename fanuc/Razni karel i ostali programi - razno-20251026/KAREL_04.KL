@@ -1,0 +1,64 @@
+PROGRAM KAREL_04
+
+VAR
+	i, j, STATUS:INTEGER
+	r:REAL
+	s:STRING[30]
+	
+BEGIN
+	-- Tipovi podataka
+	j=100
+	r=10.123558
+	s='robota'
+	
+	--PROMJENA VRIJEDNOSTI SISTEMSKE VARIJABLE
+              $MCR.$GENOVERRIDE=1
+	--ISPIS PODATAKA
+	WRITE('j= ' ,j,CR)
+	WRITE('r= ', r::6::3,CR)
+	WRITE('Programiranje ',s,CR)
+		
+	--VREMENSKO CEKANJE OD 1000ms
+	DELAY 1000
+	
+	--RAD SA DIGITALNIM SIGNALIMA
+	IF DIN[101]= ON THEN  
+		DOUT[101]=ON
+	ENDIF
+	
+	--RAD SA ROBOTSKIM SIGNALIMA
+	IF RDI[1]=ON THEN
+		RDO[1]=OFF
+	ENDIF
+	
+               i=2
+               ---SELECT NAREDBA
+	SELECT i OF
+	    CASE (1):
+		WRITE('IZBOR 1',CR)
+ 	    CASE (2):
+		WRITE('IZBOR 2',CR)
+	    ELSE:
+		WRITE('krivi izbor',CR)
+	ENDSELECT
+              
+        
+	--FOR PETLJA
+	FOR I=1 TO 5 DO
+		DELAY 100
+	ENDFOR
+
+	i=7
+	
+	--WHILE PETLJA
+	WHILE I>1 DO
+		I=I-1
+		DELAY 100
+	ENDWHILE
+	
+	--GOTO NAREDBA;SKOK NA OZNAKU
+	GOTO OZN  
+		--OVAJ RED SE PRESKACE
+	OZN::
+	
+END KAREL_04

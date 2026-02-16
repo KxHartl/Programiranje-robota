@@ -1,0 +1,52 @@
+PROGRAM FRM_WEB
+%NOLOCKGROUP
+
+VAR
+    count1 : INTEGER
+    count2 : INTEGER
+    file1 : FILE
+    entry : INTEGER
+    STATUS,POC,KRAJ : INTEGER
+    p1, p2, p3, cur_pos, frm : XYZWPR
+    visoffset : XYZWPR
+    en,M,i,ii,j,jj,k,l,pom : INTEGER
+    X,Y,Z,W,P,R,real_value : REAL
+    config_var : CONFIG
+    s : STRING[20]
+    KOC, KOC2: ARRAY[30,10] OF REAL
+    file_var: FILE
+    int_value: INTEGER
+    prog_indx IN DRAM :INTEGER
+    
+
+BEGIN
+   
+  OPEN FILE file1 ('RW', 'RD:RESPONSE.HTM') 
+  WRITE file1 ('<H1> -- **** USER FRAMES **** </H1>')    
+  FOR i=1 TO 9 DO
+      p1=$MNUFRAME[1,i]
+      CNV_CONF_STR(p1.config_data, s)
+      WRITE file1 ('-- *** USER FRAME ',i,'. ***&nbsp <br>  x=',p1.x::8::3,'; &nbsp y=',p1.y::8::3,
+      '; &nbspz=',p1.z::8::3,'; &nbsp;w=',
+      p1.w::8::3,';&nbsp;p=',p1.p::8::3,';&nbsp;r=',p1.r::8::3,';&nbsp;s=',CHR(39),s,CHR(39),'<br>',CR)            
+      WRITE file1('CNV_STR_CONF(s,config_var,STATUS); &nbsp p1=POS( x,y,z,w,p,r,config_var);&nbsp $MNUFRAME[1,',i,
+      ']=p1 <br><br>',CR)
+   
+  ENDFOR
+  
+    WRITE file1 ('<br><H1> -- **** TOOL FRAMES **** </H1>')  
+  FOR i=1 TO 10 DO
+      p1=$MNUTOOL[1,i]
+      CNV_CONF_STR(p1.config_data, s)
+      WRITE file1 ('-- ***  TOOL FRAME ',i,'. ***&nbsp <br>  x=',p1.x::8::3,'; &nbsp y=',p1.y::8::3,
+      '; &nbsp z=',p1.z::8::3,'; &nbsp;w=',
+      p1.w::8::3,';&nbsp;p=',p1.p::8::3,';&nbsp;r=',p1.r::8::3,';&nbsp;s=',CHR(39),s,CHR(39),'<br>',CR)            
+      WRITE file1('CNV_STR_CONF(s,config_var,STATUS); &nbsp p1=POS( x,y,z,w,p,r,config_var);&nbsp $MNUTOOL[1,',i,
+      ']=p1 <br><br>',CR)
+   
+  ENDFOR
+  
+   
+  CLOSE FILE file1
+
+END FRM_WEB

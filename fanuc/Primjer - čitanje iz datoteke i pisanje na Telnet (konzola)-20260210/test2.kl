@@ -1,0 +1,59 @@
+PROGRAM test2
+CONST
+    filepath = 'MC:data.txt' 
+    
+VAR
+ i, STATUS: INTEGER
+ p1 : XYZWPR
+ cons, myfile:FILE
+eof: BOOLEAN
+ j,k,l:REAL
+
+BEGIN
+OPEN FILE cons ('RW', 'CONS:') -- otvori konzolu
+OPEN FILE myfile('RO',filepath) 
+eof=FALSE
+ $GROUP[1].$UFRAME = $MNUFRAME[1,1];
+ $GROUP[1].$UTOOL = $MNUTOOL[1,1]
+ $GROUP[1].$MOTYPE=LINEAR;
+ $GROUP[1].$SPEED=300
+ $GROUP[1].$TERMTYPE=NODECEL
+
+ P1=CURPOS(0,0)
+ FOR i=1 TO 1 DO
+ P1.x=P1.x+20; P1.y=P1.y-10
+ WRITE(p1,CR)
+ WRITE cons(p1.x::15::2,p1.y::10::2,CR)
+ MOVE TO P1
+ DELAY 1000
+ ENDFOR
+ DELAY 1000
+ WRITE('KRAJ',CR)
+ 
+  REPEAT -- citaj iz data.txt sve dok ne dodeš do kraja datoteke
+        
+        READ myfile(j,k,l) -- procitaj tri realna broja
+
+        IF IO_STATUS(myfile) = 0 THEN -- provjeri status zadnje I/O operacije na myfile
+        	WRITE cons (j::5::2,k::5::2,l::5::2,CR)  --citanje uspješno:  ispis na konzolu
+        ELSE
+            EOF = TRUE  -- citanje neuspješno: kraj REPEAT petlje
+        ENDIF
+        
+    UNTIL EOF
+    CLOSE FILE myfile 
+    eof=FALSE
+    OPEN FILE myfile('RO',filepath) 
+  REPEAT -- citaj iz data.txt sve dok ne dodeš do kraja datoteke
+        
+        READ myfile(j) -- procitaj tri realna broja
+
+        IF IO_STATUS(myfile) = 0 THEN -- provjeri status zadnje I/O operacije na myfile
+        	WRITE cons (j::5::2,CR)  --citanje uspješno:  ispis na konzolu
+        ELSE
+            EOF = TRUE  -- citanje neuspješno: kraj REPEAT petlje
+        ENDIF
+        
+    UNTIL EOF
+
+END test2

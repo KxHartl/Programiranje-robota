@@ -1,0 +1,8 @@
+PROGRAM F1
+BEGIN
+   DELAY 350;
+   WRITE('WAITNG.... F1....',CR); 
+   DELAY 150;
+   WAIT for TPIN[129];
+   DELAY 350;
+END F1

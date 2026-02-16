@@ -1,0 +1,51 @@
+PROGRAM z_karel
+-- machine directive
+%NOPAUSESHFT  --na stvarnom roobtu ne pauzira program neovisno
+					 -- ako pustite tipku SHIFT
+					 
+%NOLOCKGROUP  --ne zakljucava niti jednu grupu osi
+
+
+VAR
+	i,status:INTEGER
+	r:REAL   --realni broj
+	s:STRING[20]   -- niz znakova
+	p1:XYZWPR
+	b:BOOLEAN	  -- true ili false   1 ili 0
+
+BEGIN
+
+	$GROUP[1].$UFRAME = $MNUFRAME[1,9]
+	$GROUP[1].$UTOOL = $MNUTOOL[1,1]
+	p1=CURPOS(0,0)
+	
+	p1.x=15;   	p1.y=15;	p1.z=50;	p1.w=0
+	p1.p=0
+	p1.r=0
+	
+	SET_POS_REG(2,p1,status)
+	WRITE('Status:',status,CR)
+	
+	oznaka1:: --oznaka ili tag - nakon naziva duplo dvotocje
+	WRITE('Upisi broj redaka paletizacije:')
+	READ(s) 
+	CNV_STR_REAL(s,r)
+	--provjera da li je upisan broj
+	IF UNINIT(r) THEN
+		GOTO oznaka1
+	ENDIF
+	i=ROUND(r)
+	SET_INT_REG(10,i,status) -- R[10] je broj redova
+	
+	oznaka2:: --oznaka ili tag - nakon naziva duplo dvotocje
+	WRITE('Upisi broj stupaca paletizacije:')
+	READ(s) 
+	CNV_STR_REAL(s,r)
+	--provjera da li je upisan broj
+	IF UNINIT(r) THEN
+		GOTO oznaka2
+	ENDIF
+	i=ROUND(r)
+	SET_INT_REG(11,i,status)  -- R[11] je broj redova
+
+END z_karel

@@ -1,0 +1,23 @@
+PROGRAM KAREL_03
+
+VAR
+ STATUS:INTEGER
+ rand,x,y,z,w,p,r:REAL
+ p1 : XYZWPR
+ config_var:CONFIG   
+   
+BEGIN
+ 
+     CNV_STR_CONF('nut000', config_var, STATUS)
+     X=300;Y=200;Z=250;W=0;P=0;R=0; 
+     p1= POS(x,y,z,w,p,r, config_var)
+  	
+    $GROUP[1].$UFRAME = $MNUFRAME[1,1];
+    $GROUP[1].$UTOOL =  $MNUTOOL[1,1]
+    $GROUP[1].$MOTYPE=LINEAR; 
+    $GROUP[1].$SPEED=400
+    $GROUP[1].$TERMTYPE=FINE
+    
+    MOVE TO p1
+    	
+END KAREL_03

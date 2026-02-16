@@ -1,0 +1,12 @@
+
+PROGRAM KAREL_01
+%NOPAUSESHFT  -- program se ne pauzira ako se pusti tipka SHIFT
+%NOLOCKGROUP -- program ne zakljucava niti jednu "motion" grupu
+%COMMENT = 'komentar...'
+
+BEGIN
+	WRITE('Ispis na USER screen',CR) 
+	-- komentar
+	DELAY 500 -- cekanje 3,5 sekundi
+	WRITE('gotovo...',CR)
+END KAREL_01

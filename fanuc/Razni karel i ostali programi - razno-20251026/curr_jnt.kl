@@ -1,0 +1,40 @@
+PROGRAM curr_jnt
+%NOPAUSE = ERROR + COMMAND + TPENABLE
+
+VAR
+ STATUS:INTEGER
+ file_var:FILE
+ rand,x,y,z,w,p,r:REAL
+ p1 : XYZWPR
+ config_var:CONFIG
+   s:STRING[100]
+  jpos:JOINTPOS
+  jp_org : ARRAY [9] OF REAL  
+ j1,j2,j3,j4,j5,j6:STRING[20]
+ TAG_:STRING [10]
+
+BEGIN
+ 
+ jpos=CURJPOS(0,0)
+ WRITE($FAST_CLOCK, CR)
+ WRITE(jpos,CR)
+ CNV_JPOS_REL (jpos, jp_org, STATUS)
+
+  CNV_REAL_STR(jp_org[1],2,3,j1)
+  CNV_REAL_STR(jp_org[2],2,3,j2)
+  CNV_REAL_STR(jp_org[3],2,3,j3)
+  CNV_REAL_STR(jp_org[4],2,3,j4)
+  CNV_REAL_STR(jp_org[5],2,3,j5)
+  CNV_REAL_STR(jp_org[6],2,3,j6)
+
+
+OPEN FILE file_var ('AP','UD1:\Jpos1.TXT')
+STATUS = IO_STATUS(file_var)
+WRITE('STATUS: ',STATUS, CR)
+
+
+  WRITE file_var ('P',jp_org[1]::9::3,jp_org[2]::9::3,jp_org[3]::9::3,jp_org[4]::9::3,jp_org[5]::9::3,jp_org[6]::9::3,'K',CR)
+WRITE file_var ('P',j1,' X',j2,' X',j3,' X',j4,' X',j5,' X',j6,'K',CR)
+
+  CLOSE FILE file_var
+ END curr_jnt

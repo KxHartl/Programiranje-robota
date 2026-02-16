@@ -1,0 +1,14 @@
+PROGRAM main
+VAR
+    prog_indx IN DRAM :INTEGER
+    i, STATUS: INTEGER
+    p1 : XYZWPR
+BEGIN
+FOR i=1 TO 5 DO
+  CALL_PROG('PICK_JEDAN_TP',prog_indx)
+  CALL_PROG('ODLOZI_TP_JEDAN',prog_indx)
+  
+  CALL_PROG('PICK_PALETA',prog_indx)
+  CALL_PROG('ODLOZI_TP',prog_indx)  
+ENDFOR  
+END main

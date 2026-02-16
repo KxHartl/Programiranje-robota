@@ -1,0 +1,199 @@
+PROGRAM hartl_paletization
+%NOPAUSESHFT
+%NOLOCKGROUP
+%COMMENT = 'Zadatak 1 - Paletizacija'
+
+-- ===================================================================
+-- PROGRAM: hartl_paletization
+-- AUTOR: Krešimir Hartl
+-- ZADATAK: Generiranje koordinata za 16 paletnih mjesta i pozicioniranje
+-- ===================================================================
+
+CONST
+    TP_PROGRAM_NAME = 'MOVE_ZADATAK_01'  -- Ime TP programa za pokretanje
+    PALETTE_ROWS = 4                        -- Broj redova palete
+    PALETTE_COLS = 4                        -- Broj stupaca palete
+    OFFSET_X = 50                          -- Razmak između paletnih mjesta u X smjeru [mm]
+    OFFSET_Y = 50                          -- Razmak između paletnih mjesta u Y smjeru [mm]
+    START_Z = 50                           -- Visina paletnih mjesta [mm]
+    
+VAR
+    -- Statusne varijable
+    status: INTEGER
+    prog_index: INTEGER
+    
+    -- Varijable za generiranje koordinata
+    row, col: INTEGER
+    palette_id: INTEGER
+    
+    -- Varijable za korisnički unos
+    input_valid: BOOLEAN
+    input_text: STRING[10]
+    selected_id: INTEGER
+    selected_uframe: INTEGER
+    selected_speed: INTEGER
+    
+    -- Varijable za poziciju
+    config_data: CONFIG
+    target_pos: XYZWPR
+
+BEGIN
+    -- Postavljanje konfiguracije robota
+    CNV_STR_CONF('NUT000', config_data, status)
+    
+    WRITE('', CR)
+    WRITE('================================', CR)
+    WRITE('   PALETIZACIJA - HARTL', CR)
+    WRITE('================================', CR)
+    WRITE('', CR)
+    
+    -- ===================================================================
+    -- GENERIRANJE KOORDINATA ZA 16 PALETNIH MJESTA
+    -- Pozicijski registri PR[20] do PR[35]
+    -- ===================================================================
+    
+    WRITE('Generiranje koordinata...', CR)
+    
+    FOR row = 0 TO (PALETTE_ROWS - 1) DO
+        FOR col = 0 TO (PALETTE_COLS - 1) DO
+            -- Izračun ID-a paletnog mjesta (1-16)
+            palette_id = row * PALETTE_COLS + col + 1
+            
+            -- Postavljanje koordinata
+            target_pos.X = col * OFFSET_X
+            target_pos.Y = row * OFFSET_Y
+            target_pos.Z = START_Z
+            target_pos.W = 180
+            target_pos.P = 0
+            target_pos.R = 0
+            target_pos.config_data = config_data
+            
+            -- Spremanje u pozicijski registar PR[19 + palette_id]
+            SET_POS_REG(19 + palette_id, target_pos, status)
+            
+        ENDFOR
+    ENDFOR
+    
+    WRITE('Spremljeno 16 paletnih mjesta u PR[20]-PR[35]', CR)
+    WRITE('', CR)
+    
+    -- Default postavke
+    selected_id = 1
+    selected_uframe = 8
+    selected_speed = 50
+    
+    -- ===================================================================
+    -- GLAVNA PETLJA - Korisnički unos i izvršavanje
+    -- ===================================================================
+    
+    REPEAT
+        WRITE('', CR)
+        WRITE('--- NOVA ITERACIJA ---', CR)
+        
+        -- =======================================
+        -- UNOS 1: Identifikator paletnog mjesta (1-16)
+        -- =======================================
+        input_valid = TRUE
+        WHILE input_valid = TRUE DO
+            WRITE('Unesite ID paletnog mjesta (1-16): ', CR)
+            WRITE('[0 = zadrzi prethodni, 999 = prekid]', CR)
+            READ(input_text)
+            CNV_STR_INT(input_text, selected_id)
+            
+            -- Provjera za prekid programa
+            IF selected_id = 999 THEN
+                WRITE('', CR)
+                WRITE('Program prekinut od korisnika.', CR)
+                ABORT
+            ENDIF
+            
+            -- Ako je 0, zadrži prethodnu vrijednost
+            IF selected_id <> 0 THEN
+                IF (selected_id < 1) OR (selected_id > 16) THEN
+                    WRITE('GRESKA: ID mora biti 1-16!', CR)
+                ELSE
+                    input_valid = FALSE
+                ENDIF
+            ELSE
+                input_valid = FALSE
+            ENDIF
+        ENDWHILE
+        
+        -- =======================================
+        -- UNOS 2: Korisnički koordinatni sustav (8 ili 9)
+        -- =======================================
+        input_valid = TRUE
+        WHILE input_valid = TRUE DO
+            WRITE('Unesite UFRAME (8 ili 9): ', CR)
+            WRITE('[0 = zadrzi prethodni, 999 = prekid]', CR)
+            READ(input_text)
+            CNV_STR_INT(input_text, selected_uframe)
+            
+            IF selected_uframe = 999 THEN
+                WRITE('Program prekinut od korisnika.', CR)
+                ABORT
+            ENDIF
+            
+            IF selected_uframe <> 0 THEN
+                IF (selected_uframe <> 8) AND (selected_uframe <> 9) THEN
+                    WRITE('GRESKA: UFRAME mora biti 8 ili 9!', CR)
+                ELSE
+                    input_valid = FALSE
+                ENDIF
+            ELSE
+                input_valid = FALSE
+            ENDIF
+        ENDWHILE
+        
+        -- =======================================
+        -- UNOS 3: Brzina izvođenja gibanja (10-100)
+        -- =======================================
+        input_valid = TRUE
+        WHILE input_valid = TRUE DO
+            WRITE('Unesite brzinu [10-100]: ', CR)
+            WRITE('[0 = zadrzi prethodni, 999 = prekid]', CR)
+            READ(input_text)
+            CNV_STR_INT(input_text, selected_speed)
+            
+            IF selected_speed = 999 THEN
+                WRITE('Program prekinut od korisnika.', CR)
+                ABORT
+            ENDIF
+            
+            IF selected_speed <> 0 THEN
+                IF (selected_speed < 10) OR (selected_speed > 100) THEN
+                    WRITE('GRESKA: Brzina mora biti 10-100!', CR)
+                ELSE
+                    input_valid = FALSE
+                ENDIF
+            ELSE
+                input_valid = FALSE
+            ENDIF
+        ENDWHILE
+        
+        -- ===================================================================
+        -- SPREMANJE PARAMETARA U REGISTRE
+        -- ===================================================================
+        SET_INT_REG(1, selected_speed, status)           -- R[1] = brzina
+        SET_INT_REG(2, 19 + selected_id, status)         -- R[2] = ID PR registra
+        SET_INT_REG(3, selected_uframe, status)          -- R[3] = UFRAME broj
+        
+        WRITE('', CR)
+        WRITE('Parametri postavljeni:', CR)
+        WRITE('  - Paletno mjesto: ', selected_id, CR)
+        WRITE('  - PR registar: PR[', 19 + selected_id, ']', CR)
+        WRITE('  - UFRAME: ', selected_uframe, CR)
+        WRITE('  - Brzina: ', selected_speed, ' %', CR)
+        WRITE('', CR)
+        
+        -- ===================================================================
+        -- POKRETANJE TP PROGRAMA ZA GIBANJE ROBOTA
+        -- ===================================================================
+        WRITE('Pokretanje TP programa...', CR)
+        CALL_PROG(TP_PROGRAM_NAME, prog_index)
+        
+        WRITE('Gibanje zavrseno.', CR)
+        
+    UNTIL FALSE
+    
+END hartl_paletization

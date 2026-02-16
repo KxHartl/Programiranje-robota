@@ -1,0 +1,72 @@
+PROGRAM hartl_main
+%NOPAUSESHFT
+%COMMENT = 'Zadatak 2 - Glavni program'
+
+-- ===================================================================
+-- PROGRAM: hartl_main
+-- AUTOR: Krešimir Hartl
+-- ZADATAK: Glavni program za upravljanje paletizacijom i data loggerom
+-- ===================================================================
+
+-- FLAGOVI:
+-- FLG[1] - Slanje podataka po dolasku u novu tocku (ON = aktivno)
+-- FLG[2] - Kontinuirano slanje podataka (ON = aktivno)
+-- FLG[7] - Kontrola izvrsavanja glavne petlje (OFF = kraj programa)
+
+CONST
+    TASK_PAL = 'hartl_paletization'
+    TASK_LOG = 'hartl_datalogger'
+
+VAR
+    status: INTEGER
+
+BEGIN
+    WRITE('', CR)
+    WRITE('========================================', CR)
+    WRITE('   GLAVNI PROGRAM - HARTL', CR)
+    WRITE('========================================', CR)
+    WRITE('', CR)
+    
+    -- ===================================================================
+    -- INICIJALIZACIJA
+    -- ===================================================================
+    
+    -- Inicijalizacija kontrolnih flagova
+    FLG[7] = ON  -- Omoguci izvrsavanje glavne petlje
+    FLG[1] = OFF -- Slanje po dolasku u tocku (zadano OFF)
+    FLG[2] = OFF -- Kontinuirano slanje (zadano OFF)
+    
+    WRITE('KONTROLA FLAGOVIMA:', CR)
+    WRITE('  FLG[1] - Slanje po dolasku u tocku (ON/OFF)', CR)
+    WRITE('  FLG[2] - Kontinuirano slanje (ON/OFF)', CR)
+    WRITE('  FLG[7] - Zaustavljanje programa (OFF = kraj)', CR)
+    WRITE('', CR)
+    WRITE('Program pokrenut. Pritisni ABORT za zaustavljanje.', CR)
+    WRITE('', CR)
+    
+    -- ===================================================================
+    -- POKRETANJE PODPROGRAMA
+    -- ===================================================================
+    RUN_TASK(TASK_PAL, 1, FALSE, TRUE, 1, status)
+    RUN_TASK(TASK_LOG, 0, FALSE, FALSE, 2, status)
+    
+    -- ===================================================================
+    -- GLAVNA PETLJA PROGRAMA
+    -- ===================================================================
+    
+    WHILE FLG[7] = ON DO
+        DELAY 200
+    ENDWHILE
+    
+    -- ===================================================================
+    -- ZAVRŠETAK PROGRAMA
+    -- ===================================================================
+    
+    WRITE('', CR)
+    WRITE('Glavni program zaustavljen.', CR)
+    WRITE('FLG[7] postavljen na OFF.', CR)
+    
+    -- Završno slanje podataka
+    RUN_TASK('hartl_datalogger', 0, FALSE, FALSE, 2, status)
+    
+END hartl_main

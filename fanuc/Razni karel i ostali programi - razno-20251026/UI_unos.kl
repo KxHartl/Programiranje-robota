@@ -1,0 +1,24 @@
+PROGRAM  P_UI_UNOS
+
+%NOLOCKGROUP
+
+VAR
+rea:REAL
+str: STRING[10]
+unos:INTEGER
+STATUS:INTEGER
+BEGIN
+REPEAT
+WRITE(CR)
+WRITE('Enter za nastavak',CR)
+WRITE('Vrijednost:')
+READ(str)
+CNV_STR_REAL(str, rea)
+UNTIL NOT UNINIT(rea)
+
+unos=ROUND(rea)
+SET_INT_REG(20,unos,STATUS)
+
+END  P_UI_UNOS
+
+

@@ -1,0 +1,175 @@
+PROGRAM hartl_datalogger
+%NOPAUSESHFT
+%NOLOCKGROUP
+%COMMENT = 'Zadatak 2 - Data Logger sa TELNET'
+%NOPAUSE = ERROR + COMMAND + TPENABLE
+
+-- ===================================================================
+-- PROGRAM: hartl_datalogger
+-- AUTOR: Kresimir Hartl
+-- ZADATAK: Slanje podataka o statusu robota preko TELNET veze
+-- ===================================================================
+
+-- LOGIKA FLAGOVA:
+-- FLG[1]=ON, FLG[2]=OFF: slanje nakon zavrsetka gibanja (dolazak u tocku)
+-- FLG[1]=OFF, FLG[2]=ON: kontinuirano slanje na 2 Hz
+-- FLG[1]=ON, FLG[2]=ON: ne salje se nista
+-- FLG[1]=OFF, FLG[2]=OFF: ne salje se nista
+-- FLG[7]: kontrola petlje (OFF = kraj)
+
+CONST
+    LOG_DELAY_MS = 500  -- 2 Hz
+
+VAR
+    telnet_console: FILE
+    current_time: INTEGER
+    time_string: STRING[100]
+    seconds: INTEGER
+    tcp_position: XYZWPR
+    active_uframe: INTEGER
+    joint_position: JOINTPOS
+    joint_values: ARRAY[6] OF REAL
+    status: INTEGER
+    send_data: BOOLEAN
+    prev_x: REAL
+    prev_y: REAL
+    prev_z: REAL
+    was_moving: BOOLEAN
+    is_moving: BOOLEAN
+    sec_tens: INTEGER
+    sec_ones: INTEGER
+
+BEGIN
+    -- ===================================================================
+    -- OTVARANJE TELNET VEZE
+    -- ===================================================================
+    OPEN FILE telnet_console('RW', 'CONS:')
+    WRITE telnet_console('', CR)
+    WRITE telnet_console('=====================================', CR)
+    WRITE telnet_console('   DATA LOGGER TELNET - HARTL', CR)
+    WRITE telnet_console('=====================================', CR)
+    WRITE telnet_console('', CR)
+
+    -- Inicijalizacija detekcije gibanja
+    was_moving = FALSE
+    tcp_position = CURPOS(0, 0)
+    prev_x = tcp_position.x
+    prev_y = tcp_position.y
+    prev_z = tcp_position.z
+
+    -- ===================================================================
+    -- GLAVNA PETLJA DATA LOGGERA
+    -- ===================================================================
+    WHILE FLG[7] DO
+
+        send_data = FALSE
+
+        -- Detekcija gibanja: usporedba trenutne i prethodne pozicije
+        tcp_position = CURPOS(0, 0)
+        is_moving = FALSE
+        IF tcp_position.x <> prev_x THEN
+            is_moving = TRUE
+        ENDIF
+        IF tcp_position.y <> prev_y THEN
+            is_moving = TRUE
+        ENDIF
+        IF tcp_position.z <> prev_z THEN
+            is_moving = TRUE
+        ENDIF
+
+        -- FLG[1]=ON, FLG[2]=OFF: salji samo kad zavrsi gibanje
+        IF FLG[1] THEN
+            IF NOT FLG[2] THEN
+                -- Robot se kretao i upravo stao -> posalji podatke
+                IF was_moving THEN
+                    IF NOT is_moving THEN
+                        send_data = TRUE
+                    ENDIF
+                ENDIF
+            ENDIF
+        ENDIF
+
+        -- FLG[1]=OFF, FLG[2]=ON: kontinuirano slanje 2 Hz
+        IF NOT FLG[1] THEN
+            IF FLG[2] THEN
+                send_data = TRUE
+            ENDIF
+        ENDIF
+
+        -- Oba ON ili oba OFF -> ne salje se nista
+
+        IF send_data THEN
+            -- Vrijeme
+            GET_TIME(current_time)
+            CNV_TIME_STR(current_time, time_string)
+            
+            -- Ukloni trailing space iz time_string
+            IF SUB_STR(time_string, STR_LEN(time_string), 1) = ' ' THEN
+                time_string = SUB_STR(time_string, 1, STR_LEN(time_string) - 1)
+            ENDIF
+            
+            seconds = (current_time AND 31) * 2
+            sec_tens = seconds DIV 10
+            sec_ones = seconds MOD 10
+            time_string = time_string + ':' + CHR(48 + sec_tens) + CHR(48 + sec_ones)
+
+            WRITE telnet_console('DATUM/VRIJEME: ', time_string, CR)
+            WRITE telnet_console('FAST_CLOCK: ', $FAST_CLOCK::10, ' ms', CR)
+
+            -- Aktivni UFRAME
+            active_uframe = $MNUFRAMENUM[1]
+            WRITE telnet_console('', CR)
+            WRITE telnet_console('AKTIVAN UFRAME: ', active_uframe, CR)
+
+            -- TCP pozicija u aktivnom UFRAME-u
+            $GROUP[1].$UFRAME = $MNUFRAME[1, active_uframe]
+            tcp_position = CURPOS(0, 0)
+
+            WRITE telnet_console('TCP POZICIJA [mm / deg]:', CR)
+            WRITE telnet_console('  X: ', tcp_position.x::8::2, ' mm', CR)
+            WRITE telnet_console('  Y: ', tcp_position.y::8::2, ' mm', CR)
+            WRITE telnet_console('  Z: ', tcp_position.z::8::2, ' mm', CR)
+            WRITE telnet_console('  W: ', tcp_position.w::8::2, ' deg', CR)
+            WRITE telnet_console('  P: ', tcp_position.p::8::2, ' deg', CR)
+            WRITE telnet_console('  R: ', tcp_position.r::8::2, ' deg', CR)
+
+            -- Zglobne pozicije
+            joint_position = CURJPOS(0, 0)
+            CNV_JPOS_REL(joint_position, joint_values, status)
+
+            WRITE telnet_console('', CR)
+            WRITE telnet_console('ZGLOBNE POZICIJE [deg]:', CR)
+            WRITE telnet_console('  J1: ', joint_values[1]::8::3, ' deg', CR)
+            WRITE telnet_console('  J2: ', joint_values[2]::8::3, ' deg', CR)
+            WRITE telnet_console('  J3: ', joint_values[3]::8::3, ' deg', CR)
+            WRITE telnet_console('  J4: ', joint_values[4]::8::3, ' deg', CR)
+            WRITE telnet_console('  J5: ', joint_values[5]::8::3, ' deg', CR)
+            WRITE telnet_console('  J6: ', joint_values[6]::8::3, ' deg', CR)
+            WRITE telnet_console('', CR)
+        ENDIF
+
+        -- Azuriranje prethodne pozicije
+        was_moving = is_moving
+        prev_x = tcp_position.x
+        prev_y = tcp_position.y
+        prev_z = tcp_position.z
+
+        -- Delay ovisno o modu
+        IF NOT FLG[1] THEN
+            IF FLG[2] THEN
+                DELAY LOG_DELAY_MS
+            ENDIF
+        ENDIF
+
+        -- Kratki delay za sve ostale slucajeve (polling za detekciju gibanja)
+        IF NOT send_data THEN
+            DELAY 100
+        ENDIF
+
+    ENDWHILE
+
+    WRITE telnet_console('', CR)
+    WRITE telnet_console('--- DATA LOGGER ZAUSTAVLJEN ---', CR)
+    CLOSE FILE telnet_console
+
+END hartl_datalogger

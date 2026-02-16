@@ -1,0 +1,40 @@
+PROGRAM sinus
+VAR
+ STATUS,i,t0,t1:INTEGER
+ rand,x,y,z,w,p,r:REAL
+ p1 : XYZWPR
+ config_var:CONFIG   
+ clock_var: INTEGER
+BEGIN
+	clock_var=0
+	t0=$FAST_CLOCK
+	CONNECT TIMER TO clock_var
+     CNV_STR_CONF('nut000', config_var, STATUS)
+     X=500;Y=-500;Z=0;W=0;P=0;R=0; 
+     p1= POS(x,y,z,w,p,r, config_var)
+  	
+    $GROUP[1].$UFRAME = $MNUFRAME[1,8];
+    $GROUP[1].$UTOOL =  $MNUTOOL[1,1]
+
+    $GROUP[1].$MOTYPE=LINEAR; 
+    $GROUP[1].$SPEED=500
+    $GROUP[1].$TERMTYPE=FINE
+
+
+    $MCR_GRP[1].$PRGOVERRIDE = 100
+    $MCR.$GENOVERRIDE=15
+    
+    MOVE TO p1	
+    GOTO kraj
+    	
+    FOR i=1 TO 720 DO
+    	p1.z=180*SIN(i*1)
+    	p1.y=-500+i
+    	MOVE TO p1 NOWAIT
+    ENDFOR
+    
+   kraj::
+   t1=$FAST_CLOCK
+   WRITE('clock_var:',clock_var,CR)
+   WRITE('t1-t0:',(t1-t0)*2,CR)
+ END sinus
